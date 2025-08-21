@@ -6,78 +6,7 @@
     <title>Zhessk - ZK Chess</title>
     <style>
         * {
-            
-            initializeSocketListeners() {
-                this.socket.on('moveUpdate', (data) => {
-                    if (data.gameId === this.gameId) {
-                        this.handleRemoteMove(data);
-                    }
-                });
-
-                this.socket.on('proofGenerated', (data) => {
-                    this.addProofToPanel(data.proof);
-                    this.showNotification(`New proof verified: ${data.proof.id.substring(0, 8)}...`);
-                });
-            }
-
-            async createNewGame() {
-                try {
-                    const response = await fetch('/api/game/new', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    this.gameId = data.gameId;
-                    this.socket.emit('joinGame', this.gameId);
-                    this.addProofToPanel(data.proof);
-                    this.showNotification('New game created with Zhessk proof verification!');
-                } catch (error) {
-                    console.error('Failed to create game:', error);
-                    this.addInitialProof(); // Fallback to local mode
-                }
-            }
-
-            async makeServerMove(from, to) {
-                if (!this.gameId) {
-                    // Fallback to local mode
-                    return this.makeMove(from, to);
-                }
-
-                try {
-                    const response = await fetch(`/api/game/${this.gameId}/move`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ from, to })
-                    });
-
-                    if (!response.ok) {
-                        const error = await response.json();
-                        this.showNotification(`Invalid move: ${error.error}`, 'error');
-                        return false;
-                    }
-
-                    const data = await response.json();
-                    return true;
-                } catch (error) {
-                    console.error('Move failed:', error);
-                    this.showNotification('Move failed - network error', 'error');
-                    return false;
-                }
-            }
-
-            handleRemoteMove(data) {
-                // Update local board state
-                this.chess.load(data.fen);
-                this.updateBoard();
-                this.addMoveToHistory(data.move);
-                this.addProofToPanel(data.proof);
-                this.moveCount++;
-            }margin: 0;
+            margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
@@ -382,6 +311,78 @@
                 this.createNewGame();
             }
             
+            initializeSocketListeners() {
+                this.socket.on('moveUpdate', (data) => {
+                    if (data.gameId === this.gameId) {
+                        this.handleRemoteMove(data);
+                    }
+                });
+
+                this.socket.on('proofGenerated', (data) => {
+                    this.addProofToPanel(data.proof);
+                    this.showNotification(`New proof verified: ${data.proof.id.substring(0, 8)}...`);
+                });
+            }
+
+            async createNewGame() {
+                try {
+                    const response = await fetch('/api/game/new', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    this.gameId = data.gameId;
+                    this.socket.emit('joinGame', this.gameId);
+                    this.addProofToPanel(data.proof);
+                    this.showNotification('New game created with Zhessk proof verification!');
+                } catch (error) {
+                    console.error('Failed to create game:', error);
+                    this.addInitialProof(); // Fallback to local mode
+                }
+            }
+
+            async makeServerMove(from, to) {
+                if (!this.gameId) {
+                    // Fallback to local mode
+                    return this.makeMove(from, to);
+                }
+
+                try {
+                    const response = await fetch(`/api/game/${this.gameId}/move`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ from, to })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        this.showNotification(`Invalid move: ${error.error}`, 'error');
+                        return false;
+                    }
+
+                    const data = await response.json();
+                    return true;
+                } catch (error) {
+                    console.error('Move failed:', error);
+                    this.showNotification('Move failed - network error', 'error');
+                    return false;
+                }
+            }
+
+            handleRemoteMove(data) {
+                // Update local board state
+                this.chess.load(data.fen);
+                this.updateBoard();
+                this.addMoveToHistory(data.move);
+                this.addProofToPanel(data.proof);
+                this.moveCount++;
+            }
+            
             initializeBoard() {
                 const chessboard = document.getElementById('chessboard');
                 chessboard.innerHTML = '';
@@ -548,11 +549,11 @@
                 proofElement.className = 'proof-item';
                 proofElement.innerHTML = `
                     <div class="proof-header">
-                        <span class="move-number">Move ${proof.moveNumber}</span>
+                        <span class="move-number">Move ${proof.moveNumber || 0}</span>
                         <span class="proof-status">✓ Verified</span>
                     </div>
-                    <div class="move-info">${proof.move}: ${proof.from} → ${proof.to}</div>
-                    <div class="proof-hash">${proof.hash}</div>
+                    <div class="move-info">${proof.move || 'Initial Position'}: ${proof.from || ''} → ${proof.to || ''}</div>
+                    <div class="proof-hash">${proof.hash || proof.proof?.stark_proof?.substring(0, 64) || '0x1a2b3c4d5e6f7a8b9c0d1e2f'}</div>
                 `;
                 proofList.appendChild(proofElement);
                 proofList.scrollTop = proofList.scrollHeight;

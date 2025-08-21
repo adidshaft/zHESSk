@@ -47,7 +47,6 @@ class MockZiskProver {
         return proofData;
     }
 
-    // ... rest of the methods remain the same ...
     prepareCircuitInput(gameState) {
         return {
             board_state: this.fenToArray(gameState.fen),
@@ -104,4 +103,32 @@ class MockZiskProver {
     }
 
     pieceToNumber(piece) {
-        const pieces
+        const pieces = {
+            'P': 1, 'p': -1, 'R': 2, 'r': -2, 'N': 3, 'n': -3,
+            'B': 4, 'b': -4, 'Q': 5, 'q': -5, 'K': 6, 'k': -6
+        };
+        return pieces[piece] || 0;
+    }
+
+    squareToIndex(square) {
+        const file = square.charCodeAt(0) - 97;
+        const rank = 8 - parseInt(square[1]);
+        return rank * 8 + file;
+    }
+
+    async verifyProof(proof) {
+        // Mock verification
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return {
+            valid: true,
+            verification_time: Math.random() * 100 + 10,
+            verifier: 'Zhessk-MockVerifier'
+        };
+    }
+
+    getProofHistory() {
+        return this.proofHistory;
+    }
+}
+
+module.exports = MockZiskProver;
