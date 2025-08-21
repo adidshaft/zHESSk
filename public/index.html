@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zhessk - ZK Chess</title>
+    <style>
+        * {
+            
+            initializeSocketListeners() {
+                this.socket.on('moveUpdate', (data) => {
+                    if (data.gameId === this.gameId) {
+                        this.handleRemoteMove(data);
+                    }
+                });
+
+                this.socket.on('proofGenerated', (data) => {
+                    this.addProofToPanel(data.proof);
+                    this.showNotification(`New proof verified: ${data.proof.id.substring(0, 8)}...`);
+                });
+            }
+
+            async createNewGame() {
+                try {
+                    const response = await fetch('/api/game/new', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    this.gameId = data.gameId;
+                    this.socket.emit('joinGame', this.gameId);
+                    this.addProofToPanel(data.proof);
+                    this.showNotification('New game created with Zhessk proof verification!');
+                } catch (error) {
+                    console.error('Failed to create game:', error);
+                    this.addInitialProof(); // Fallback to local mode
+                }
+            }
+
+            async makeServerMove(from, to) {
+                if (!this.gameId) {
+                    // Fallback to local mode
+                    return this.makeMove(from, to);
+                }
+
+                try {
+                    const response = await fetch(`/api/game/${this.gameId}/move`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ from, to })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        this.showNotification(`Invalid move: ${error.error}`, 'error');
+                        return false;
+                    }
+
+                    const data = await response.json();
+                    return true;
+                } catch (error) {
+                    console.error('Move failed:', error);
+                    this.showNotification('Move failed - network error', 'error');
+                    return false;
+                }
+            }
+
+            handleRemoteMove(data) {
+                // Update local board state
+                this.chess.load(data.fen);
+                this.updateBoard();
+                this.addMoveToHistory(data.move);
+                this.addProofToPanel(data.proof);
+                this.moveCount++;
+            }margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            height: 100vh;
+            display: flex;
+        }
+        
+        .main-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .left-panel {
+            width: 350px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .center-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .proof-panel h2 {
+            margin-bottom: 20px;
+            color: #4fc3f7;
+            font-size: 1.5rem;
+        }
+        
+        .proof-list {
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+        
+        .proof-item {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .proof-item:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateX(5px);
+        }
+        
+        .proof-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .move-number {
+            background: #4fc3f7;
+            color: #1a1a2e;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+        
+        .proof-status {
+            font-size: 0.8rem;
+            color: #81c784;
+        }
+        
+        .move-info {
+            font-size: 0.9rem;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+        }
+        
+        .proof-hash {
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #90a4ae;
+            word-break: break-all;
+        }
+        
+        .chessboard {
+            width: 480px;
+            height: 480px;
+            border: 3px solid #4fc3f7;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(79, 195, 247, 0.3);
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            overflow: hidden;
+        }
+        
+        .square {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .square.light {
+            background-color: #f0d9b5;
+        }
+        
+        .square.dark {
+            background-color: #b58863;
+        }
+        
+        .square.selected {
+            background-color: #ffeb3b !important;
+            box-shadow: inset 0 0 10px rgba(255, 235, 59, 0.5);
+        }
+        
+        .square.possible-move {
+            background-color: rgba(76, 175, 80, 0.3) !important;
+        }
+        
+        .square.possible-move::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #4caf50;
+            border-radius: 50%;
+        }
+        
+        .square:hover {
+            opacity: 0.8;
+        }
+        
+        .game-info {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .current-turn {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .game-status {
+            font-size: 1rem;
+            color: #81c784;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(79, 195, 247, 0.4);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .notification-body {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            margin-top: 20px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 195, 247, 0.4);
+        }
+        
+        .move-history {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .move-history h3 {
+            margin-bottom: 10px;
+            color: #4fc3f7;
+        }
+        
+        .move-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .move-entry {
+            padding: 2px 5px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Left Panel - Proof Visualization -->
+        <div class="left-panel">
+            <div class="proof-panel">
+                <h2>🔐 Zhessk Proofs</h2>
+                <div class="proof-list" id="proofList">
+                    <div class="proof-item">
+                        <div class="proof-header">
+                            <span class="move-number">Game Start</span>
+                            <span class="proof-status">✓ Verified</span>
+                        </div>
+                        <div class="move-info">Initial board state</div>
+                        <div class="proof-hash">0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Center Panel - Chess Game -->
+        <div class="center-panel">
+            <div class="chessboard" id="chessboard"></div>
+            
+            <div class="game-info">
+                <div class="current-turn" id="currentTurn">White to move</div>
+                <div class="game-status" id="gameStatus">Game in progress</div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn" onclick="resetGame()">New Game</button>
+                <button class="btn" onclick="undoMove()">Undo Move</button>
+                <button class="btn" onclick="generateProof()">Generate Proof</button>
+            </div>
+            
+            <div class="move-history">
+                <h3>Move History</h3>
+                <div class="move-list" id="moveHistory"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Popup -->
+    <div class="notification" id="notification">
+        <div class="notification-header">Zhessk Proof Generated!</div>
+        <div class="notification-body">Move proof has been verified and stored.</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.4.0/chess.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        class ZhesskChessGame {
+            constructor() {
+                this.chess = new Chess();
+                this.selectedSquare = null;
+                this.possibleMoves = [];
+                this.moveCount = 0;
+                this.proofs = [];
+                this.gameId = null;
+                this.socket = io();
+                this.initializeSocketListeners();
+                this.initializeBoard();
+                this.createNewGame();
+            }
+            
+            initializeBoard() {
+                const chessboard = document.getElementById('chessboard');
+                chessboard.innerHTML = '';
+                
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const square = document.createElement('div');
+                        square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+                        square.dataset.row = row;
+                        square.dataset.col = col;
+                        square.dataset.square = this.getSquareName(row, col);
+                        square.addEventListener('click', (e) => this.handleSquareClick(e));
+                        chessboard.appendChild(square);
+                    }
+                }
+                this.updateBoard();
+            }
+            
+            getSquareName(row, col) {
+                const files = 'abcdefgh';
+                const ranks = '87654321';
+                return files[col] + ranks[row];
+            }
+            
+            getPieceSymbol(piece) {
+                const symbols = {
+                    'wp': '♟', 'bp': '♙',
+                    'wr': '♜', 'br': '♖',
+                    'wn': '♞', 'bn': '♘',
+                    'wb': '♝', 'bb': '♗',
+                    'wq': '♛', 'bq': '♕',
+                    'wk': '♚', 'bk': '♔'
+                };
+                return symbols[piece] || '';
+            }
+            
+            updateBoard() {
+                const board = this.chess.board();
+                const squares = document.querySelectorAll('.square');
+                
+                squares.forEach((square, index) => {
+                    const row = Math.floor(index / 8);
+                    const col = index % 8;
+                    const piece = board[row][col];
+                    
+                    if (piece) {
+                        const pieceKey = piece.color + piece.type;
+                        square.textContent = this.getPieceSymbol(pieceKey);
+                    } else {
+                        square.textContent = '';
+                    }
+                });
+                
+                this.updateGameInfo();
+            }
+            
+            updateGameInfo() {
+                const turn = this.chess.turn() === 'w' ? 'White' : 'Black';
+                document.getElementById('currentTurn').textContent = `${turn} to move`;
+                
+                let status = 'Game in progress';
+                if (this.chess.isCheckmate()) {
+                    status = `Checkmate! ${turn === 'White' ? 'Black' : 'White'} wins!`;
+                } else if (this.chess.isDraw()) {
+                    status = 'Draw!';
+                } else if (this.chess.isCheck()) {
+                    status = `${turn} is in check!`;
+                }
+                
+                document.getElementById('gameStatus').textContent = status;
+            }
+            
+            handleSquareClick(event) {
+                const square = event.target;
+                const squareName = square.dataset.square;
+                
+                // Clear previous highlights
+                document.querySelectorAll('.square').forEach(s => {
+                    s.classList.remove('selected', 'possible-move');
+                });
+                
+                if (this.selectedSquare === squareName) {
+                    // Deselect if clicking the same square
+                    this.selectedSquare = null;
+                    this.possibleMoves = [];
+                    return;
+                }
+                
+                if (this.selectedSquare && this.possibleMoves.includes(squareName)) {
+                    // Make the move
+                    this.makeServerMove(this.selectedSquare, squareName);
+                    this.selectedSquare = null;
+                    this.possibleMoves = [];
+                } else {
+                    // Select new square
+                    const piece = this.chess.get(squareName);
+                    if (piece && piece.color === this.chess.turn()) {
+                        this.selectedSquare = squareName;
+                        square.classList.add('selected');
+                        
+                        // Show possible moves
+                        this.possibleMoves = this.chess.moves({ square: squareName, verbose: true })
+                            .map(move => move.to);
+                        
+                        this.possibleMoves.forEach(move => {
+                            const targetSquare = document.querySelector(`[data-square="${move}"]`);
+                            if (targetSquare) {
+                                targetSquare.classList.add('possible-move');
+                            }
+                        });
+                    }
+                }
+            }
+            
+            makeMove(from, to) {
+                const move = this.chess.move({ from, to });
+                if (move) {
+                    this.moveCount++;
+                    this.updateBoard();
+                    this.addMoveToHistory(move);
+                    this.generateMoveProof(move);
+                }
+            }
+            
+            addMoveToHistory(move) {
+                const moveHistory = document.getElementById('moveHistory');
+                const moveElement = document.createElement('div');
+                moveElement.className = 'move-entry';
+                moveElement.textContent = `${this.moveCount}. ${move.san}`;
+                moveHistory.appendChild(moveElement);
+                moveHistory.scrollTop = moveHistory.scrollHeight;
+            }
+            
+            generateMoveProof(move) {
+                // Simulate ZK proof generation
+                const proof = {
+                    moveNumber: this.moveCount,
+                    move: move.san,
+                    from: move.from,
+                    to: move.to,
+                    fen: this.chess.fen(),
+                    hash: this.generateMockHash(),
+                    timestamp: new Date().toISOString()
+                };
+                
+                this.proofs.push(proof);
+                this.addProofToPanel(proof);
+                this.showNotification(`Proof generated for move: ${move.san}`);
+            }
+            
+            generateMockHash() {
+                // Generate a mock proof hash
+                const chars = '0123456789abcdef';
+                let hash = '0x';
+                for (let i = 0; i < 64; i++) {
+                    hash += chars[Math.floor(Math.random() * chars.length)];
+                }
+                return hash;
+            }
+            
+            addProofToPanel(proof) {
+                const proofList = document.getElementById('proofList');
+                const proofElement = document.createElement('div');
+                proofElement.className = 'proof-item';
+                proofElement.innerHTML = `
+                    <div class="proof-header">
+                        <span class="move-number">Move ${proof.moveNumber}</span>
+                        <span class="proof-status">✓ Verified</span>
+                    </div>
+                    <div class="move-info">${proof.move}: ${proof.from} → ${proof.to}</div>
+                    <div class="proof-hash">${proof.hash}</div>
+                `;
+                proofList.appendChild(proofElement);
+                proofList.scrollTop = proofList.scrollHeight;
+            }
+            
+            addInitialProof() {
+                const initialProof = {
+                    moveNumber: 0,
+                    move: 'Initial Position',
+                    fen: this.chess.fen(),
+                    hash: '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f',
+                    timestamp: new Date().toISOString()
+                };
+                this.proofs.push(initialProof);
+            }
+            
+            showNotification(message, type = 'success') {
+                const notification = document.getElementById('notification');
+                const header = notification.querySelector('.notification-header');
+                const body = notification.querySelector('.notification-body');
+                
+                if (type === 'error') {
+                    header.textContent = 'Error';
+                    notification.style.background = 'linear-gradient(135deg, #f44336, #d32f2f)';
+                } else {
+                    header.textContent = 'Zhessk Proof Generated!';
+                    notification.style.background = 'linear-gradient(135deg, #4fc3f7, #29b6f6)';
+                }
+                
+                body.textContent = message;
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+            
+            resetGame() {
+                this.createNewGame();
+                this.chess = new Chess();
+                this.selectedSquare = null;
+                this.possibleMoves = [];
+                this.moveCount = 0;
+                this.proofs = [];
+                
+                document.getElementById('proofList').innerHTML = '';
+                document.getElementById('moveHistory').innerHTML = '';
+                
+                this.initializeBoard();
+            }
+            
+            undoMove() {
+                const undone = this.chess.undo();
+                if (undone) {
+                    this.moveCount--;
+                    this.updateBoard();
+                    
+                    // Remove last move from history
+                    const moveHistory = document.getElementById('moveHistory');
+                    if (moveHistory.lastElementChild) {
+                        moveHistory.removeChild(moveHistory.lastElementChild);
+                    }
+                    
+                    // Remove last proof
+                    if (this.proofs.length > 1) {
+                        this.proofs.pop();
+                        const proofList = document.getElementById('proofList');
+                        if (proofList.lastElementChild) {
+                            proofList.removeChild(proofList.lastElementChild);
+                        }
+                    }
+                    
+                    this.showNotification('Move undone');
+                }
+            }
+        }
+        
+        // Global functions for buttons
+        let game;
+        
+        function resetGame() {
+            game.resetGame();
+        }
+        
+        function undoMove() {
+            game.undoMove();
+        }
+        
+        function generateProof() {
+            game.showNotification('Manual proof generation triggered');
+        }
+        
+        // Initialize game when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            game = new ZhesskChessGame();
+        });
+    </script>
+</body>
+</html>

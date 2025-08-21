@@ -1,0 +1,15 @@
+[package]
+name = "zhessk-chess-validator"
+version = "0.1.0"
+edition = "2025"
+description = "Zhessk chess move validator for ZK proofs"
+authors = ["Your Name <adidshaft@example.com>"]
+
+[dependencies]
+# These will be the actual ZisK dependencies when available
+# zisk-sdk = "0.1.0"
+# zisk-std = "0.1.0"
+
+[lib]
+name = "zhessk_chess_validator"
+crate-type = ["cdylib"]
