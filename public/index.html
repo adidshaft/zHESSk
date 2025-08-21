@@ -93,6 +93,7 @@
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
+            cursor: pointer;
         }
         
         .proof-item::before {
@@ -172,8 +173,230 @@
             border-radius: 4px;
             border-left: 3px solid #4fc3f7;
         }
-        
-        .chessboard {
+
+        /* Proof Postmortem Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid rgba(79, 195, 247, 0.3);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            color: #4fc3f7;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 69, 58, 0.3);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .proof-timeline {
+            position: relative;
+        }
+
+        .timeline-step {
+            display: flex;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 20px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .step-number::after {
+            content: '';
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 50px;
+            background: linear-gradient(to bottom, #4fc3f7, transparent);
+        }
+
+        .timeline-step:last-child .step-number::after {
+            display: none;
+        }
+
+        .step-content {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 3px solid #4fc3f7;
+        }
+
+        .step-title {
+            color: #4fc3f7;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .step-description {
+            color: #e0e0e0;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .step-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .step-metric {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .metric-label-modal {
+            font-size: 0.7rem;
+            color: #90a4ae;
+            margin-bottom: 2px;
+        }
+
+        .metric-value-modal {
+            font-size: 0.9rem;
+            color: #4fc3f7;
+            font-weight: bold;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 12px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #81c784;
+            overflow-x: auto;
+        }
+
+        .execution-trace {
+            background: rgba(26, 26, 46, 0.8);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .trace-header {
+            color: #4fc3f7;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .register-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            margin: 10px 0;
+        }
+
+        .register-cell {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px;
+            border-radius: 3px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+        }
+
+        .progress-bar {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            height: 6px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #4fc3f7, #81c784);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+      .chessboard {
             width: 480px;
             height: 480px;
             border: 3px solid #4fc3f7;
@@ -318,6 +541,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="main-container">
         <!-- Left Panel -->
@@ -353,6 +577,19 @@
             <div class="move-history">
                 <h3>Move History</h3>
                 <div class="move-list" id="moveHistory"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Proof Postmortem Modal -->
+    <div class="modal-overlay" id="proofModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Proof Postmortem</div>
+                <button class="close-btn" onclick="closeProofModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be dynamically generated -->
             </div>
         </div>
     </div>
@@ -589,19 +826,126 @@
             }
             
             generateMoveProof(move) {
-                const proof = {
-                    moveNumber: this.moveCount,
-                    move: move.san,
-                    from: move.from,
-                    to: move.to,
-                    hash: this.generateMockHash(),
-                    executionTime: Math.random() * 500 + 100,
-                    proofSize: Math.floor(Math.random() * 1000 + 500)
-                };
-                
+                const proof = this.createDetailedProof(move);
                 this.proofs.push(proof);
                 this.addProofToPanel(proof);
                 this.showNotification(`Proof generated for move: ${move.san}`);
+            }
+
+            createDetailedProof(move) {
+                const executionTime = Math.random() * 500 + 100;
+                const proofSize = Math.floor(Math.random() * 1000 + 500);
+                const cycles = Math.floor(Math.random() * 10000 + 1000);
+                
+                return {
+                    moveNumber: this.moveCount,
+                    move: move ? move.san : 'Initial Position',
+                    from: move ? move.from : null,
+                    to: move ? move.to : null,
+                    hash: this.generateMockHash(),
+                    executionTime,
+                    proofSize,
+                    cycles,
+                    timestamp: Date.now(),
+                    postmortem: this.generateProofPostmortem(move, executionTime, cycles)
+                };
+            }
+
+            generateProofPostmortem(move, executionTime, cycles) {
+                const steps = [
+                    {
+                        title: "Input Validation",
+                        description: `Validating chess move from ${move?.from || 'start'} to ${move?.to || 'initial'} according to chess rules and current board state.`,
+                        duration: Math.floor(executionTime * 0.1),
+                        cycles: Math.floor(cycles * 0.05),
+                        memoryUsed: Math.floor(Math.random() * 100 + 50),
+                        success: true,
+                        details: {
+                            boardState: "64-byte array parsed successfully",
+                            moveValidation: "Legal move confirmed",
+                            turnValidation: "Correct player turn verified"
+                        }
+                    },
+                    {
+                        title: "Circuit Compilation",
+                        description: "Compiling chess validation circuit into RISC-V bytecode for ZK execution.",
+                        duration: Math.floor(executionTime * 0.15),
+                        cycles: Math.floor(cycles * 0.1),
+                        memoryUsed: Math.floor(Math.random() * 200 + 150),
+                        success: true,
+                        details: {
+                            circuitSize: `${Math.floor(Math.random() * 50 + 100)}KB`,
+                            constraints: `${Math.floor(Math.random() * 5000 + 10000)} R1CS constraints`,
+                            compilation: "RISC-V bytecode generated"
+                        }
+                    },
+                    {
+                        title: "Execution Trace Generation",
+                        description: "Executing chess validation program and capturing complete execution trace for proof generation.",
+                        duration: Math.floor(executionTime * 0.3),
+                        cycles: Math.floor(cycles * 0.4),
+                        memoryUsed: Math.floor(Math.random() * 300 + 200),
+                        success: true,
+                        details: {
+                            registers: this.generateMockRegisters(),
+                            memoryAccesses: Math.floor(Math.random() * 500 + 200),
+                            instructions: Math.floor(cycles * 0.8)
+                        }
+                    },
+                    {
+                        title: "Polynomial Commitment",
+                        description: "Computing polynomial commitments for the execution trace using FRI-based commitment scheme.",
+                        duration: Math.floor(executionTime * 0.2),
+                        cycles: Math.floor(cycles * 0.25),
+                        memoryUsed: Math.floor(Math.random() * 150 + 100),
+                        success: true,
+                        details: {
+                            polynomialDegree: Math.floor(Math.random() * 1000 + 2000),
+                            merkleTreeHeight: Math.floor(Math.random() * 5 + 15),
+                            commitmentSize: `${Math.floor(Math.random() * 50 + 100)}B`
+                        }
+                    },
+                    {
+                        title: "STARK Proof Generation",
+                        description: "Generating STARK proof using FRI protocol with multiple rounds of interaction.",
+                        duration: Math.floor(executionTime * 0.2),
+                        cycles: Math.floor(cycles * 0.15),
+                        memoryUsed: Math.floor(Math.random() * 200 + 150),
+                        success: true,
+                        details: {
+                            friRounds: Math.floor(Math.random() * 3 + 5),
+                            securityLevel: "128-bit",
+                            proofElements: Math.floor(Math.random() * 20 + 40)
+                        }
+                    },
+                    {
+                        title: "Proof Verification",
+                        description: "Self-verifying the generated proof to ensure correctness before finalization.",
+                        duration: Math.floor(executionTime * 0.05),
+                        cycles: Math.floor(cycles * 0.05),
+                        memoryUsed: Math.floor(Math.random() * 50 + 25),
+                        success: true,
+                        details: {
+                            verificationTime: `${Math.floor(Math.random() * 10 + 5)}ms`,
+                            publicInputs: move ? `[${move.from}, ${move.to}]` : "[initial_position]",
+                            proofValid: true
+                        }
+                    }
+                ];
+
+                return {
+                    steps,
+                    totalDuration: executionTime,
+                    totalCycles: cycles,
+                    peakMemory: Math.max(...steps.map(s => s.memoryUsed)),
+                    proofSize: Math.floor(Math.random() * 1000 + 500)
+                };
+            }
+
+            generateMockRegisters() {
+                return Array.from({length: 32}, () => 
+                    '0x' + Math.floor(Math.random() * 0xFFFFFFFF).toString(16).padStart(8, '0')
+                );
             }
             
             generateMockHash() {
@@ -612,15 +956,16 @@
                 }
                 return hash;
             }
-            
+
             addProofToPanel(proof) {
                 const proofList = document.getElementById('proofList');
                 const proofElement = document.createElement('div');
                 proofElement.className = 'proof-item';
+                proofElement.onclick = () => showProofPostmortem(proof);
                 
                 const executionTime = proof.executionTime || 50;
                 const proofSize = proof.proofSize || 500;
-                const cycles = Math.floor(Math.random() * 10000 + 1000);
+                const cycles = proof.cycles || 1000;
                 
                 proofElement.innerHTML = `
                     <div class="proof-header">
@@ -663,13 +1008,12 @@
             }
             
             addInitialProof() {
-                const initialProof = {
-                    moveNumber: 0,
-                    move: 'Initial Position',
-                    hash: '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f',
-                    executionTime: 45,
-                    proofSize: 512
-                };
+                const initialProof = this.createDetailedProof(null);
+                initialProof.moveNumber = 0;
+                initialProof.move = 'Initial Position';
+                initialProof.hash = '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f';
+                initialProof.executionTime = 45;
+                initialProof.proofSize = 512;
                 this.proofs.push(initialProof);
                 this.addProofToPanel(initialProof);
             }
@@ -720,6 +1064,140 @@
                 }
             }
         }
+
+        // Proof Postmortem Modal Functions
+        function showProofPostmortem(proof) {
+            const modal = document.getElementById('proofModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalTitle.textContent = `Proof Postmortem - ${proof.move}`;
+            
+            const timeline = generateTimelineHTML(proof.postmortem);
+            modalBody.innerHTML = timeline;
+            
+            modal.classList.add('show');
+            
+            // Animate steps
+            setTimeout(() => {
+                const steps = document.querySelectorAll('.timeline-step');
+                steps.forEach((step, index) => {
+                    setTimeout(() => {
+                        step.style.animationDelay = `${index * 0.1}s`;
+                    }, index * 100);
+                });
+            }, 100);
+        }
+
+        function generateTimelineHTML(postmortem) {
+            let html = `
+                <div class="proof-timeline">
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #4fc3f7; margin-bottom: 10px;">📊 Execution Summary</h3>
+                        <div class="step-metrics" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+                            <div class="step-metric">
+                                <div class="metric-label-modal">Total Duration</div>
+                                <div class="metric-value-modal">${postmortem.totalDuration.toFixed(0)}ms</div>
+                            </div>
+                            <div class="step-metric">
+                                <div class="metric-label-modal">Total Cycles</div>
+                                <div class="metric-value-modal">${postmortem.totalCycles.toLocaleString()}</div>
+                            </div>
+                            <div class="step-metric">
+                                <div class="metric-label-modal">Peak Memory</div>
+                                <div class="metric-value-modal">${postmortem.peakMemory}KB</div>
+                            </div>
+                            <div class="step-metric">
+                                <div class="metric-label-modal">Proof Size</div>
+                                <div class="metric-value-modal">${postmortem.proofSize}B</div>
+                            </div>
+                        </div>
+                    </div>
+            `;
+
+            postmortem.steps.forEach((step, index) => {
+                const progressPercentage = ((step.duration / postmortem.totalDuration) * 100).toFixed(1);
+                
+                html += `
+                    <div class="timeline-step">
+                        <div class="step-number">${index + 1}</div>
+                        <div class="step-content">
+                            <div class="step-title">${step.title}</div>
+                            <div class="step-description">${step.description}</div>
+                            
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progressPercentage}%"></div>
+                            </div>
+                            
+                            <div class="step-metrics">
+                                <div class="step-metric">
+                                    <div class="metric-label-modal">Duration</div>
+                                    <div class="metric-value-modal">${step.duration}ms</div>
+                                </div>
+                                <div class="step-metric">
+                                    <div class="metric-label-modal">Cycles</div>
+                                    <div class="metric-value-modal">${step.cycles.toLocaleString()}</div>
+                                </div>
+                                <div class="step-metric">
+                                    <div class="metric-label-modal">Memory</div>
+                                    <div class="metric-value-modal">${step.memoryUsed}KB</div>
+                                </div>
+                                <div class="step-metric">
+                                    <div class="metric-label-modal">Status</div>
+                                    <div class="metric-value-modal">${step.success ? '✅ Success' : '❌ Failed'}</div>
+                                </div>
+                            </div>
+                `;
+
+                // Add specific details based on step type
+                if (step.title === "Execution Trace Generation" && step.details.registers) {
+                    html += `
+                        <div class="execution-trace">
+                            <div class="trace-header">🔍 RISC-V Register State</div>
+                            <div class="register-grid">
+                    `;
+                    step.details.registers.slice(0, 16).forEach((reg, i) => {
+                        html += `<div class="register-cell">x${i}: ${reg.substring(0, 6)}...</div>`;
+                    });
+                    html += `
+                            </div>
+                            <div style="margin-top: 10px; font-size: 0.8rem; color: #90a4ae;">
+                                Memory Accesses: ${step.details.memoryAccesses} | Instructions: ${step.details.instructions}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (step.details) {
+                    html += `<div class="code-block">`;
+                    Object.entries(step.details).forEach(([key, value]) => {
+                        if (key !== 'registers') {
+                            html += `${key}: ${value}<br>`;
+                        }
+                    });
+                    html += `</div>`;
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            return html;
+        }
+
+        function closeProofModal() {
+            document.getElementById('proofModal').classList.remove('show');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('proofModal').addEventListener('click', (e) => {
+            if (e.target.id === 'proofModal') {
+                closeProofModal();
+            }
+        });
 
         // Global functions
         let game;
