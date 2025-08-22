@@ -3,7 +3,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const { Chess } = require('chess.js');
-const MockZiskProver = require('./mock-zisk-prover');
+const SP1ChessProver = require('./sp1-chess-prover');
 const path = require('path');
 
 const app = express();
@@ -19,7 +19,7 @@ app.use(express.static('public'));
 app.use(express.json());
 
 const games = new Map();
-const prover = new MockZiskProver();
+const prover = new SP1ChessProver();
 
 // Initialize the prover
 prover.compileProgram().then(() => {
