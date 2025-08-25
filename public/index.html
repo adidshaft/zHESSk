@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zhessk - ZK Chess</title>
+    <title>Zhessk - ZK Chess with SP1 Proof Visualization</title>
     <style>
         * {
             margin: 0;
@@ -26,7 +26,7 @@
         }
         
         .left-panel {
-            width: 350px;
+            width: 400px;
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border-right: 1px solid rgba(255, 255, 255, 0.1);
@@ -43,18 +43,112 @@
             padding: 20px;
         }
         
+        /* Proof Status Indicator */
+        .proof-status-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 10px 20px;
+            text-align: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .proof-status-banner.real-proofs {
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            color: white;
+        }
+        
+        .proof-status-banner.mock-proofs {
+            background: linear-gradient(90deg, #ff9800, #ffc107);
+            color: #1a1a2e;
+        }
+        
         .proof-panel h2 {
             margin-bottom: 20px;
             color: #4fc3f7;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             display: flex;
             align-items: center;
             gap: 10px;
         }
         
+        /* Proof Generation Progress */
+        .proof-progress {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .proof-progress.active {
+            display: block;
+            animation: pulse 2s infinite;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .progress-type {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        
+        .progress-type.real {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .progress-type.mock {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4fc3f7, #81c784);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .progress-stage {
+            font-size: 0.9rem;
+            color: #e0e0e0;
+            margin-bottom: 5px;
+        }
+        
+        .progress-details {
+            font-size: 0.8rem;
+            color: #90a4ae;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
         .proof-stats {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 10px;
             margin-bottom: 20px;
         }
@@ -68,19 +162,19 @@
         }
         
         .stat-number {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: bold;
             color: #4fc3f7;
         }
         
         .stat-label {
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             color: #90a4ae;
             margin-top: 4px;
         }
         
         .proof-list {
-            max-height: calc(100vh - 200px);
+            max-height: calc(100vh - 300px);
             overflow-y: auto;
         }
         
@@ -96,14 +190,24 @@
             cursor: pointer;
         }
         
-        .proof-item::before {
+        .proof-item.real-proof::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, #4fc3f7, #81c784);
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+        }
+        
+        .proof-item.mock-proof::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #ff9800, #ffc107);
         }
         
         .proof-item:hover {
@@ -127,9 +231,21 @@
             font-size: 0.8rem;
         }
         
-        .proof-status {
-            font-size: 0.8rem;
-            color: #81c784;
+        .proof-type-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .proof-type-badge.real {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .proof-type-badge.mock {
+            background: #ff9800;
+            color: white;
         }
         
         .move-info {
@@ -162,241 +278,120 @@
             color: #4fc3f7;
             font-weight: bold;
         }
-        
-        .proof-hash {
-            font-family: 'Courier New', monospace;
-            font-size: 0.75rem;
-            color: #90a4ae;
-            word-break: break-all;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 8px;
-            border-radius: 4px;
-            border-left: 3px solid #4fc3f7;
-        }
 
-        /* Proof Postmortem Modal */
-        .modal-overlay {
+        /* Proof Detail Modal */
+        .proof-modal {
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            right: 0;
+            bottom: 0;
             background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(5px);
-            z-index: 2000;
             display: none;
             justify-content: center;
             align-items: center;
+            z-index: 2000;
         }
-
-        .modal-overlay.show {
+        
+        .proof-modal.active {
             display: flex;
         }
-
+        
         .modal-content {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border: 2px solid rgba(79, 195, 247, 0.3);
+            border: 1px solid rgba(79, 195, 247, 0.3);
             border-radius: 12px;
-            width: 90%;
-            max-width: 1000px;
-            max-height: 90vh;
+            padding: 30px;
+            max-width: 700px;
+            max-height: 80vh;
             overflow-y: auto;
             position: relative;
         }
-
-        .modal-header {
-            padding: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-title {
-            color: #4fc3f7;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .close-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-
-        .close-btn:hover {
-            background: rgba(255, 69, 58, 0.3);
-        }
-
-        .modal-body {
-            padding: 20px;
-        }
-
-        .proof-timeline {
-            position: relative;
-        }
-
-        .timeline-step {
-            display: flex;
-            margin-bottom: 30px;
-            animation: fadeInUp 0.5s ease-out;
-        }
-
-        .step-number {
-            background: linear-gradient(135deg, #4fc3f7, #29b6f6);
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-right: 20px;
-            flex-shrink: 0;
-            position: relative;
-        }
-
-        .step-number::after {
-            content: '';
+        
+        .modal-close {
             position: absolute;
-            top: 40px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 2px;
-            height: 50px;
-            background: linear-gradient(to bottom, #4fc3f7, transparent);
-        }
-
-        .timeline-step:last-child .step-number::after {
-            display: none;
-        }
-
-        .step-content {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 15px;
-            border-left: 3px solid #4fc3f7;
-        }
-
-        .step-title {
-            color: #4fc3f7;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-
-        .step-description {
-            color: #e0e0e0;
-            margin-bottom: 10px;
-            line-height: 1.5;
-        }
-
-        .step-metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .step-metric {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 8px;
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        .metric-label-modal {
-            font-size: 0.7rem;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
             color: #90a4ae;
-            margin-bottom: 2px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
         }
-
-        .metric-value-modal {
-            font-size: 0.9rem;
+        
+        .modal-close:hover {
             color: #4fc3f7;
-            font-weight: bold;
         }
-
+        
+        .modal-header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(79, 195, 247, 0.3);
+            padding-bottom: 15px;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            color: #4fc3f7;
+            margin-bottom: 5px;
+        }
+        
+        .modal-subtitle {
+            color: #90a4ae;
+            font-size: 0.9rem;
+        }
+        
+        .detail-section {
+            margin-bottom: 20px;
+        }
+        
+        .detail-section h3 {
+            color: #4fc3f7;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .detail-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 6px;
+        }
+        
+        .detail-label {
+            font-size: 0.8rem;
+            color: #90a4ae;
+            margin-bottom: 5px;
+        }
+        
+        .detail-value {
+            color: #e0e0e0;
+            font-weight: bold;
+            word-break: break-all;
+        }
+        
         .code-block {
             background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(79, 195, 247, 0.2);
             border-radius: 6px;
-            padding: 12px;
-            margin: 10px 0;
+            padding: 15px;
             font-family: 'Courier New', monospace;
             font-size: 0.8rem;
-            color: #81c784;
-            overflow-x: auto;
+            color: #e0e0e0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
         }
-
-        .execution-trace {
-            background: rgba(26, 26, 46, 0.8);
-            border: 1px solid rgba(79, 195, 247, 0.3);
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-        }
-
-        .trace-header {
-            color: #4fc3f7;
-            font-weight: bold;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .register-grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 5px;
-            margin: 10px 0;
-        }
-
-        .register-cell {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 5px;
-            border-radius: 3px;
-            text-align: center;
-            font-family: 'Courier New', monospace;
-            font-size: 0.7rem;
-        }
-
-        .progress-bar {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            height: 6px;
-            margin: 10px 0;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            background: linear-gradient(90deg, #4fc3f7, #81c784);
-            height: 100%;
-            border-radius: 10px;
-            transition: width 0.3s ease;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-      .chessboard {
+        
+        /* Chess board styles */
+        .chessboard {
             width: 480px;
             height: 480px;
             border: 3px solid #4fc3f7;
@@ -463,35 +458,6 @@
             color: #81c784;
         }
         
-        .notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #4fc3f7, #29b6f6);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(79, 195, 247, 0.4);
-            transform: translateX(400px);
-            transition: transform 0.3s ease;
-            z-index: 1000;
-            min-width: 300px;
-        }
-        
-        .notification.show {
-            transform: translateX(0);
-        }
-        
-        .notification-header {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .notification-body {
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-        
         .controls {
             margin-top: 20px;
         }
@@ -539,19 +505,71 @@
             border-radius: 3px;
             background: rgba(255, 255, 255, 0.05);
         }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(79, 195, 247, 0.4);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .notification-body {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
     </style>
 </head>
 
 <body>
+    <!-- Proof Status Banner -->
+    <div class="proof-status-banner" id="proofStatusBanner">
+        🔄 Initializing proof system...
+    </div>
+
     <div class="main-container">
         <!-- Left Panel -->
         <div class="left-panel">
             <div class="proof-panel">
-                <h2>🔐 Zhessk Proofs</h2>
+                <h2>🔐 Zhessk SP1 Proofs</h2>
+                
+                <!-- Proof Generation Progress -->
+                <div class="proof-progress" id="proofProgress">
+                    <div class="progress-header">
+                        <span>Generating Proof...</span>
+                        <span class="progress-type" id="progressType">SP1-STARK</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-stage" id="progressStage">Initializing...</div>
+                    <div class="progress-details" id="progressDetails">Setting up proof generation</div>
+                </div>
+                
                 <div class="proof-stats">
                     <div class="stat-card">
                         <div class="stat-number" id="totalProofs">0</div>
                         <div class="stat-label">Total Proofs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="realProofs">0</div>
+                        <div class="stat-label">Real SP1</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-number" id="avgTime">--</div>
@@ -572,7 +590,7 @@
             <div class="controls">
                 <button class="btn" onclick="resetGame()">New Game</button>
                 <button class="btn" onclick="undoMove()">Undo Move</button>
-                <button class="btn" onclick="generateProof()">Generate Proof</button>
+                <button class="btn" onclick="generateManualProof()">Manual Proof</button>
             </div>
             <div class="move-history">
                 <h3>Move History</h3>
@@ -581,141 +599,332 @@
         </div>
     </div>
     
-    <!-- Proof Postmortem Modal -->
-    <div class="modal-overlay" id="proofModal">
+    <!-- Proof Detail Modal -->
+    <div class="proof-modal" id="proofModal">
         <div class="modal-content">
+            <button class="modal-close" onclick="closeProofModal()">&times;</button>
             <div class="modal-header">
-                <div class="modal-title" id="modalTitle">Proof Postmortem</div>
-                <button class="close-btn" onclick="closeProofModal()">×</button>
+                <div class="modal-title" id="modalTitle">Proof Details</div>
+                <div class="modal-subtitle" id="modalSubtitle">SP1 STARK Proof</div>
             </div>
-            <div class="modal-body" id="modalBody">
-                <!-- Content will be dynamically generated -->
+            <div id="modalBody">
+                <!-- Dynamic content will be inserted here -->
             </div>
         </div>
     </div>
     
     <div class="notification" id="notification">
-        <div class="notification-header">Zhessk Proof Generated!</div>
+        <div class="notification-header">Proof Generated!</div>
         <div class="notification-body">Move proof has been verified and stored.</div>
     </div>
 
-    <script>
-        // Chess implementation
-        function Chess() {
-            this.board_state = [
-                ['r','n','b','q','k','b','n','r'],
-                ['p','p','p','p','p','p','p','p'],
-                [null,null,null,null,null,null,null,null],
-                [null,null,null,null,null,null,null,null],
-                [null,null,null,null,null,null,null,null],
-                [null,null,null,null,null,null,null,null],
-                ['P','P','P','P','P','P','P','P'],
-                ['R','N','B','Q','K','B','N','R']
-            ];
-            this.turn_color = 'w';
-            this.move_history = [];
-            
-            this.board = () => {
-                return this.board_state.map((row) => 
-                    row.map((piece) => {
-                        if (!piece) return null;
-                        return {
-                            color: piece === piece.toLowerCase() ? 'b' : 'w',
-                            type: piece.toLowerCase()
-                        };
-                    })
-                );
-            };
-            
-            this.turn = () => this.turn_color;
-            this.fen = () => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-            this.isCheck = () => false;
-            this.isCheckmate = () => false;
-            this.isDraw = () => false;
-            
-            this.get = (square) => {
-                const file = square.charCodeAt(0) - 97;
-                const rank = 8 - parseInt(square[1]);
-                if (rank < 0 || rank > 7 || file < 0 || file > 7) return null;
-                const piece = this.board_state[rank][file];
-                if (!piece) return null;
-                return {
-                    color: piece === piece.toLowerCase() ? 'b' : 'w',
-                    type: piece.toLowerCase()
-                };
-            };
-            
-            this.moves = (options) => {
-                if (options && options.square) {
-                    const piece = this.get(options.square);
-                    if (!piece || piece.color !== this.turn_color) return [];
-                    const moves = this.generateMoves(options.square, piece);
-                    return options.verbose ? moves.map(to => ({ to, from: options.square })) : moves;
-                }
-                return [];
-            };
-            
-            this.generateMoves = (square, piece) => {
-                const file = square.charCodeAt(0) - 97;
-                const rank = 8 - parseInt(square[1]);
-                const moves = [];
-                
-                // Simple move generation for all pieces
-                for (let r = 0; r < 8; r++) {
-                    for (let f = 0; f < 8; f++) {
-                        if (r === rank && f === file) continue;
-                        const target = this.board_state[r][f];
-                        if (!target || (target === target.toLowerCase()) !== (piece.color === 'b')) {
-                            moves.push(String.fromCharCode(97 + f) + (8 - r));
-                        }
-                    }
-                }
-                return moves;
-            };
-            
-            this.move = (moveObj) => {
-                const { from, to } = moveObj;
-                const piece = this.get(from);
-                if (!piece || piece.color !== this.turn_color) return null;
-                
-                const fromFile = from.charCodeAt(0) - 97;
-                const fromRank = 8 - parseInt(from[1]);
-                const toFile = to.charCodeAt(0) - 97;
-                const toRank = 8 - parseInt(to[1]);
-                
-                this.board_state[toRank][toFile] = this.board_state[fromRank][fromFile];
-                this.board_state[fromRank][fromFile] = null;
-                
-                const moveResult = {
-                    from,
-                    to,
-                    san: from + '-' + to,
-                    piece: piece.type
-                };
-                
-                this.move_history.push(moveResult);
-                this.turn_color = this.turn_color === 'w' ? 'b' : 'w';
-                return moveResult;
-            };
-            
-            this.undo = () => {
-                if (this.move_history.length === 0) return null;
-                const lastMove = this.move_history.pop();
-                this.turn_color = this.turn_color === 'w' ? 'b' : 'w';
-                return lastMove;
-            };
-        }
+    <script src="/socket.io/socket.io.js"></script>
 
-        // Game class
-        class ZhesskChessGame {
+    <script>
+        // Enhanced Chess Game with SP1 Proof Visualization
+        class ZhesskEnhancedGame {
             constructor() {
                 this.chess = new Chess();
                 this.selectedSquare = null;
                 this.possibleMoves = [];
                 this.moveCount = 0;
                 this.proofs = [];
+                this.socket = io();
+                this.gameId = null;
+                this.isUsingRealProofs = false;
+                this.initializeGame();
+                this.setupSocketListeners();
+            }
+            
+            async initializeGame() {
                 this.initializeBoard();
-                this.addInitialProof();
+                await this.createNewGame();
+                this.updateProofStatus();
+            }
+            
+            setupSocketListeners() {
+                this.socket.on('proofProgress', (data) => {
+                    this.updateProofProgress(data);
+                });
+                
+                this.socket.on('proofGenerated', (data) => {
+                    this.handleProofGenerated(data);
+                });
+                
+                this.socket.on('proverStatus', (status) => {
+                    this.updateProverStatus(status);
+                });
+            }
+            
+            async createNewGame() {
+                try {
+                    const response = await fetch('/api/game/new', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const data = await response.json();
+                    this.gameId = data.gameId;
+                    this.socket.emit('joinGame', this.gameId);
+                } catch (error) {
+                    console.error('Failed to create game:', error);
+                }
+            }
+            
+            updateProverStatus(status) {
+                this.isUsingRealProofs = status.usingRealProofs;
+                this.updateProofStatus();
+                
+                // Update stats
+                document.getElementById('totalProofs').textContent = status.totalProofs || 0;
+                document.getElementById('realProofs').textContent = status.realProofs || 0;
+            }
+            
+            updateProofStatus() {
+                const banner = document.getElementById('proofStatusBanner');
+                if (this.isUsingRealProofs) {
+                    banner.className = 'proof-status-banner real-proofs';
+                    banner.innerHTML = '🔐 REAL SP1 STARK PROOFS ACTIVE - All moves generate cryptographic zero-knowledge proofs';
+                } else {
+                    banner.className = 'proof-status-banner mock-proofs';
+                    banner.innerHTML = '🎭 ENHANCED MOCK PROOFS - Realistic simulation for development (SP1 compilation failed)';
+                }
+            }
+            
+            updateProofProgress(data) {
+                const progressDiv = document.getElementById('proofProgress');
+                const progressFill = document.getElementById('progressFill');
+                const progressStage = document.getElementById('progressStage');
+                const progressDetails = document.getElementById('progressDetails');
+                const progressType = document.getElementById('progressType');
+                
+                if (data.stage === 'complete' || data.stage === 'error') {
+                    progressDiv.classList.remove('active');
+                    return;
+                }
+                
+                progressDiv.classList.add('active');
+                progressFill.style.width = `${data.progress || 0}%`;
+                progressStage.textContent = this.formatStageName(data.stage);
+                progressDetails.textContent = data.message || '';
+                
+                if (data.isReal) {
+                    progressType.textContent = 'SP1-STARK-REAL';
+                    progressType.className = 'progress-type real';
+                } else {
+                    progressType.textContent = 'ENHANCED-MOCK';
+                    progressType.className = 'progress-type mock';
+                }
+            }
+            
+            formatStageName(stage) {
+                const stageNames = {
+                    'initializing': '🔧 Initializing',
+                    'preparing_input': '📋 Preparing Input',
+                    'compiling_program': '⚙️ Compiling Program',
+                    'setup_keys': '🔑 Setup Keys',
+                    'generating_execution_trace': '🔄 Execution Trace',
+                    'creating_stark_proof': '🔐 Creating STARK Proof',
+                    'verifying_proof': '✅ Verifying',
+                    'mock_preparing_input': '🎭 Mock: Preparing Input',
+                    'mock_simulating_execution': '🎭 Mock: Simulating Execution',
+                    'mock_creating_proof': '🎭 Mock: Creating Proof',
+                    'mock_verifying': '🎭 Mock: Verifying'
+                };
+                return stageNames[stage] || stage;
+            }
+
+            handleProofGenerated(data) {
+                this.addProofToPanel(data.proof);
+                this.showNotification(
+                    data.proof.isReal ? 'Real SP1 Proof Generated!' : 'Enhanced Mock Proof Generated',
+                    `${data.move?.san || 'Move'} verified in ${data.proof.executionTime?.toFixed(0) || 0}ms`
+                );
+                this.updateStats();
+            }
+            
+            addProofToPanel(proof) {
+                const proofList = document.getElementById('proofList');
+                const proofElement = document.createElement('div');
+                proofElement.className = `proof-item ${proof.isReal ? 'real-proof' : 'mock-proof'}`;
+                proofElement.onclick = () => this.showProofDetails(proof);
+                
+                const proofTypeClass = proof.isReal ? 'real' : 'mock';
+                const proofTypeText = proof.isReal ? 'SP1-STARK' : 'MOCK';
+                const executionTime = proof.executionTime || 0;
+                const proofSize = proof.proofSize || 0;
+                const cycles = proof.sp1Details?.cycles || proof.mockDetails?.cycles || 0;
+                
+                proofElement.innerHTML = `
+                    <div class="proof-header">
+                        <span class="move-number">${proof.gameState?.moveNumber ? `Move ${proof.gameState.moveNumber}` : 'Game Start'}</span>
+                        <span class="proof-type-badge ${proofTypeClass}">${proofTypeText}</span>
+                    </div>
+                    <div class="move-info">${this.getMoveDescription(proof.gameState)}</div>
+                    <div class="proof-metrics">
+                        <div class="metric">
+                            <span class="metric-label">Time:</span>
+                            <span class="metric-value">${executionTime.toFixed(0)}ms</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Size:</span>
+                            <span class="metric-value">${proofSize}B</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Cycles:</span>
+                            <span class="metric-value">${cycles.toLocaleString()}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Type:</span>
+                            <span class="metric-value">${proof.proofType || 'STARK'}</span>
+                        </div>
+                    </div>
+                `;
+                
+                proofList.insertBefore(proofElement, proofList.firstChild);
+                this.proofs.unshift(proof);
+            }
+            
+            getMoveDescription(gameState) {
+                if (!gameState?.lastMove) return 'Initial Position';
+                const move = gameState.lastMove;
+                return `${move.from} → ${move.to} (${move.san || ''})`;
+            }
+            
+            showProofDetails(proof) {
+                const modal = document.getElementById('proofModal');
+                const modalTitle = document.getElementById('modalTitle');
+                const modalSubtitle = document.getElementById('modalSubtitle');
+                const modalBody = document.getElementById('modalBody');
+                
+                modalTitle.textContent = `Proof ${proof.id.substring(0, 8)}...`;
+                modalSubtitle.textContent = proof.isReal ? 'Real SP1 STARK Proof' : 'Enhanced Mock Proof';
+                
+                modalBody.innerHTML = this.generateProofDetailsHTML(proof);
+                modal.classList.add('active');
+            }
+
+            generateProofDetailsHTML(proof) {
+                const isReal = proof.isReal;
+                const details = isReal ? proof.sp1Details : proof.mockDetails;
+                
+                return `
+                    <div class="detail-section">
+                        <h3>🎯 Proof Overview</h3>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Proof Type</div>
+                                <div class="detail-value">${isReal ? '🔐 Real SP1 STARK' : '🎭 Enhanced Mock'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Generation Time</div>
+                                <div class="detail-value">${(proof.executionTime || 0).toFixed(2)}ms</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Proof Size</div>
+                                <div class="detail-value">${proof.proofSize || 0} bytes</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Verification Status</div>
+                                <div class="detail-value">${proof.verified ? '✅ Verified' : '❌ Failed'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>⚙️ ${isReal ? 'SP1 Execution Details' : 'Mock Simulation Details'}</h3>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Execution Cycles</div>
+                                <div class="detail-value">${(details?.cycles || 0).toLocaleString()}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Constraints</div>
+                                <div class="detail-value">${(details?.constraints || 0).toLocaleString()}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Trace Length</div>
+                                <div class="detail-value">${(details?.traceLength || 0).toLocaleString()}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">${isReal ? 'SP1 Proof Size' : 'Simulated Proof Size'}</div>
+                                <div class="detail-value">${details?.starkProofSize || details?.simulatedStarkProofSize || 0} bytes</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>🎲 Game State Details</h3>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Current Player</div>
+                                <div class="detail-value">${proof.detailed?.publicOutputs?.currentPlayer || proof.gameState?.turn || 'Unknown'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Move Number</div>
+                                <div class="detail-value">${proof.gameState?.moveNumber || 0}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Last Move</div>
+                                <div class="detail-value">${this.getMoveDescription(proof.gameState)}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Game Status</div>
+                                <div class="detail-value">${proof.gameState?.status || 'Active'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>🔑 Cryptographic Data</h3>
+                        <div class="detail-item" style="margin-bottom: 10px;">
+                            <div class="detail-label">Verification Key Hash</div>
+                            <div class="code-block">${details?.verificationKey || details?.simulatedVerificationKey || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item" style="margin-bottom: 10px;">
+                            <div class="detail-label">Game State Hash</div>
+                            <div class="code-block">${proof.detailed?.gameStateHash || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">${isReal ? 'STARK Proof Data' : 'Mock Proof Data'} (truncated)</div>
+                            <div class="code-block">${typeof proof.proof === 'string' ? proof.proof.substring(0, 200) + '...' : JSON.stringify(proof.proof).substring(0, 200) + '...'}</div>
+                        </div>
+                    </div>
+                    
+                    ${proof.isMock ? `
+                    <div class="detail-section">
+                        <h3>⚠️ Mock Proof Notice</h3>
+                        <div style="background: rgba(255, 152, 0, 0.1); border: 1px solid rgba(255, 152, 0, 0.3); border-radius: 6px; padding: 15px; color: #ffab40;">
+                            This is a simulated proof for development purposes. Real SP1 compilation failed, but the chess game logic and proof structure are identical to what would be generated with real SP1 proofs.
+                        </div>
+                    </div>
+                    ` : `
+                    <div class="detail-section">
+                        <h3>✅ Real SP1 Proof Verification</h3>
+                        <div style="background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 6px; padding: 15px; color: #81c784;">
+                            This is a genuine SP1 STARK proof generated by the Succinct zkVM. The chess move has been cryptographically verified and the proof can be independently verified by anyone.
+                        </div>
+                    </div>
+                    `}
+                `;
+            }
+
+            updateStats() {
+                const totalProofs = this.proofs.length;
+                const realProofs = this.proofs.filter(p => p.isReal).length;
+                const avgTime = totalProofs > 0 ? 
+                    this.proofs.reduce((sum, p) => sum + (p.executionTime || 0), 0) / totalProofs : 0;
+                
+                document.getElementById('totalProofs').textContent = totalProofs;
+                document.getElementById('realProofs').textContent = realProofs;
+                document.getElementById('avgTime').textContent = avgTime > 0 ? avgTime.toFixed(0) : '--';
+            }
+            
+            showNotification(title, message) {
+                const notification = document.getElementById('notification');
+                notification.querySelector('.notification-header').textContent = title;
+                notification.querySelector('.notification-body').textContent = message;
+                notification.classList.add('show');
+                setTimeout(() => notification.classList.remove('show'), 4000);
             }
             
             initializeBoard() {
@@ -806,14 +1015,30 @@
                     }
                 }
             }
-            
-            makeMove(from, to) {
-                const move = this.chess.move({ from, to });
-                if (move) {
-                    this.moveCount++;
-                    this.updateBoard();
-                    this.addMoveToHistory(move);
-                    this.generateMoveProof(move);
+
+            async makeMove(from, to) {
+                try {
+                    const response = await fetch(`/api/game/${this.gameId}/move`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ from, to })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const move = this.chess.move({ from, to });
+                        if (move) {
+                            this.moveCount++;
+                            this.updateBoard();
+                            this.addMoveToHistory(move);
+                        }
+                    } else {
+                        const error = await response.json();
+                        this.showNotification('Invalid Move', error.error || 'Move not allowed');
+                    }
+                } catch (error) {
+                    console.error('Error making move:', error);
+                    this.showNotification('Error', 'Failed to make move');
                 }
             }
             
@@ -823,206 +1048,6 @@
                 moveElement.className = 'move-entry';
                 moveElement.textContent = `${this.moveCount}. ${move.san}`;
                 moveHistory.appendChild(moveElement);
-            }
-            
-            generateMoveProof(move) {
-                const proof = this.createDetailedProof(move);
-                this.proofs.push(proof);
-                this.addProofToPanel(proof);
-                this.showNotification(`Proof generated for move: ${move.san}`);
-            }
-
-            createDetailedProof(move) {
-                const executionTime = Math.random() * 500 + 100;
-                const proofSize = Math.floor(Math.random() * 1000 + 500);
-                const cycles = Math.floor(Math.random() * 10000 + 1000);
-                
-                return {
-                    moveNumber: this.moveCount,
-                    move: move ? move.san : 'Initial Position',
-                    from: move ? move.from : null,
-                    to: move ? move.to : null,
-                    hash: this.generateMockHash(),
-                    executionTime,
-                    proofSize,
-                    cycles,
-                    timestamp: Date.now(),
-                    postmortem: this.generateProofPostmortem(move, executionTime, cycles)
-                };
-            }
-
-            generateProofPostmortem(move, executionTime, cycles) {
-                const steps = [
-                    {
-                        title: "Input Validation",
-                        description: `Validating chess move from ${move?.from || 'start'} to ${move?.to || 'initial'} according to chess rules and current board state.`,
-                        duration: Math.floor(executionTime * 0.1),
-                        cycles: Math.floor(cycles * 0.05),
-                        memoryUsed: Math.floor(Math.random() * 100 + 50),
-                        success: true,
-                        details: {
-                            boardState: "64-byte array parsed successfully",
-                            moveValidation: "Legal move confirmed",
-                            turnValidation: "Correct player turn verified"
-                        }
-                    },
-                    {
-                        title: "Circuit Compilation",
-                        description: "Compiling chess validation circuit into RISC-V bytecode for ZK execution.",
-                        duration: Math.floor(executionTime * 0.15),
-                        cycles: Math.floor(cycles * 0.1),
-                        memoryUsed: Math.floor(Math.random() * 200 + 150),
-                        success: true,
-                        details: {
-                            circuitSize: `${Math.floor(Math.random() * 50 + 100)}KB`,
-                            constraints: `${Math.floor(Math.random() * 5000 + 10000)} R1CS constraints`,
-                            compilation: "RISC-V bytecode generated"
-                        }
-                    },
-                    {
-                        title: "Execution Trace Generation",
-                        description: "Executing chess validation program and capturing complete execution trace for proof generation.",
-                        duration: Math.floor(executionTime * 0.3),
-                        cycles: Math.floor(cycles * 0.4),
-                        memoryUsed: Math.floor(Math.random() * 300 + 200),
-                        success: true,
-                        details: {
-                            registers: this.generateMockRegisters(),
-                            memoryAccesses: Math.floor(Math.random() * 500 + 200),
-                            instructions: Math.floor(cycles * 0.8)
-                        }
-                    },
-                    {
-                        title: "Polynomial Commitment",
-                        description: "Computing polynomial commitments for the execution trace using FRI-based commitment scheme.",
-                        duration: Math.floor(executionTime * 0.2),
-                        cycles: Math.floor(cycles * 0.25),
-                        memoryUsed: Math.floor(Math.random() * 150 + 100),
-                        success: true,
-                        details: {
-                            polynomialDegree: Math.floor(Math.random() * 1000 + 2000),
-                            merkleTreeHeight: Math.floor(Math.random() * 5 + 15),
-                            commitmentSize: `${Math.floor(Math.random() * 50 + 100)}B`
-                        }
-                    },
-                    {
-                        title: "STARK Proof Generation",
-                        description: "Generating STARK proof using FRI protocol with multiple rounds of interaction.",
-                        duration: Math.floor(executionTime * 0.2),
-                        cycles: Math.floor(cycles * 0.15),
-                        memoryUsed: Math.floor(Math.random() * 200 + 150),
-                        success: true,
-                        details: {
-                            friRounds: Math.floor(Math.random() * 3 + 5),
-                            securityLevel: "128-bit",
-                            proofElements: Math.floor(Math.random() * 20 + 40)
-                        }
-                    },
-                    {
-                        title: "Proof Verification",
-                        description: "Self-verifying the generated proof to ensure correctness before finalization.",
-                        duration: Math.floor(executionTime * 0.05),
-                        cycles: Math.floor(cycles * 0.05),
-                        memoryUsed: Math.floor(Math.random() * 50 + 25),
-                        success: true,
-                        details: {
-                            verificationTime: `${Math.floor(Math.random() * 10 + 5)}ms`,
-                            publicInputs: move ? `[${move.from}, ${move.to}]` : "[initial_position]",
-                            proofValid: true
-                        }
-                    }
-                ];
-
-                return {
-                    steps,
-                    totalDuration: executionTime,
-                    totalCycles: cycles,
-                    peakMemory: Math.max(...steps.map(s => s.memoryUsed)),
-                    proofSize: Math.floor(Math.random() * 1000 + 500)
-                };
-            }
-
-            generateMockRegisters() {
-                return Array.from({length: 32}, () => 
-                    '0x' + Math.floor(Math.random() * 0xFFFFFFFF).toString(16).padStart(8, '0')
-                );
-            }
-            
-            generateMockHash() {
-                const chars = '0123456789abcdef';
-                let hash = '0x';
-                for (let i = 0; i < 64; i++) {
-                    hash += chars[Math.floor(Math.random() * chars.length)];
-                }
-                return hash;
-            }
-
-            addProofToPanel(proof) {
-                const proofList = document.getElementById('proofList');
-                const proofElement = document.createElement('div');
-                proofElement.className = 'proof-item';
-                proofElement.onclick = () => showProofPostmortem(proof);
-                
-                const executionTime = proof.executionTime || 50;
-                const proofSize = proof.proofSize || 500;
-                const cycles = proof.cycles || 1000;
-                
-                proofElement.innerHTML = `
-                    <div class="proof-header">
-                        <span class="move-number">${proof.moveNumber ? `Move ${proof.moveNumber}` : 'Game Start'}</span>
-                        <span class="proof-status">✓ Verified</span>
-                    </div>
-                    <div class="move-info">${proof.move || 'Initial Position'}</div>
-                    <div class="proof-metrics">
-                        <div class="metric">
-                            <span class="metric-label">Time:</span>
-                            <span class="metric-value">${executionTime.toFixed(0)}ms</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Size:</span>
-                            <span class="metric-value">${proofSize}B</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Cycles:</span>
-                            <span class="metric-value">${cycles.toLocaleString()}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Type:</span>
-                            <span class="metric-value">STARK</span>
-                        </div>
-                    </div>
-                    <div class="proof-hash">${(proof.hash || this.generateMockHash()).substring(0, 64)}...</div>
-                `;
-                
-                proofList.appendChild(proofElement);
-                this.updateProofStats();
-            }
-            
-            updateProofStats() {
-                const totalProofs = this.proofs.length;
-                const avgTime = totalProofs > 0 ? 
-                    this.proofs.reduce((sum, p) => sum + (p.executionTime || 0), 0) / totalProofs : 0;
-                
-                document.getElementById('totalProofs').textContent = totalProofs;
-                document.getElementById('avgTime').textContent = avgTime > 0 ? avgTime.toFixed(0) : '--';
-            }
-            
-            addInitialProof() {
-                const initialProof = this.createDetailedProof(null);
-                initialProof.moveNumber = 0;
-                initialProof.move = 'Initial Position';
-                initialProof.hash = '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f';
-                initialProof.executionTime = 45;
-                initialProof.proofSize = 512;
-                this.proofs.push(initialProof);
-                this.addProofToPanel(initialProof);
-            }
-            
-            showNotification(message) {
-                const notification = document.getElementById('notification');
-                notification.querySelector('.notification-body').textContent = message;
-                notification.classList.add('show');
-                setTimeout(() => notification.classList.remove('show'), 3000);
             }
             
             resetGame() {
@@ -1036,8 +1061,8 @@
                 document.getElementById('moveHistory').innerHTML = '';
                 
                 this.initializeBoard();
-                this.addInitialProof();
-                this.showNotification('New game started!');
+                this.createNewGame();
+                this.showNotification('New Game', 'Started new chess game with proof generation');
             }
             
             undoMove() {
@@ -1051,153 +1076,118 @@
                         moveHistory.removeChild(moveHistory.lastElementChild);
                     }
                     
-                    if (this.proofs.length > 1) {
+                    if (this.proofs.length > 0) {
                         this.proofs.pop();
                         const proofList = document.getElementById('proofList');
-                        if (proofList.lastElementChild) {
-                            proofList.removeChild(proofList.lastElementChild);
+                        if (proofList.firstElementChild) {
+                            proofList.removeChild(proofList.firstElementChild);
                         }
                     }
                     
-                    this.updateProofStats();
-                    this.showNotification('Move undone');
+                    this.updateStats();
+                    this.showNotification('Move Undone', 'Last move has been reverted');
+                }
+            }
+            
+            async generateManualProof() {
+                try {
+                    const response = await fetch(`/api/game/${this.gameId}/manual-proof`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (response.ok) {
+                        this.showNotification('Manual Proof', 'Generating proof for current position...');
+                    }
+                } catch (error) {
+                    console.error('Error generating manual proof:', error);
                 }
             }
         }
 
-        // Proof Postmortem Modal Functions
-        function showProofPostmortem(proof) {
-            const modal = document.getElementById('proofModal');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalBody = document.getElementById('modalBody');
+        // Chess implementation (simplified version for demo)
+        function Chess() {
+            this.board_state = [
+                ['r','n','b','q','k','b','n','r'],
+                ['p','p','p','p','p','p','p','p'],
+                [null,null,null,null,null,null,null,null],
+                [null,null,null,null,null,null,null,null],
+                [null,null,null,null,null,null,null,null],
+                [null,null,null,null,null,null,null,null],
+                ['P','P','P','P','P','P','P','P'],
+                ['R','N','B','Q','K','B','N','R']
+            ];
+            this.turn_color = 'w';
+            this.move_history = [];
             
-            modalTitle.textContent = `Proof Postmortem - ${proof.move}`;
+            this.board = () => {
+                return this.board_state.map((row) => 
+                    row.map((piece) => {
+                        if (!piece) return null;
+                        return {
+                            color: piece === piece.toLowerCase() ? 'b' : 'w',
+                            type: piece.toLowerCase()
+                        };
+                    })
+                );
+            };
             
-            const timeline = generateTimelineHTML(proof.postmortem);
-            modalBody.innerHTML = timeline;
+            this.turn = () => this.turn_color;
+            this.fen = () => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
             
-            modal.classList.add('show');
+            this.get = (square) => {
+                const file = square.charCodeAt(0) - 97;
+                const rank = 8 - parseInt(square[1]);
+                if (rank < 0 || rank > 7 || file < 0 || file > 7) return null;
+                const piece = this.board_state[rank][file];
+                if (!piece) return null;
+                return {
+                    color: piece === piece.toLowerCase() ? 'b' : 'w',
+                    type: piece.toLowerCase()
+                };
+            };
             
-            // Animate steps
-            setTimeout(() => {
-                const steps = document.querySelectorAll('.timeline-step');
-                steps.forEach((step, index) => {
-                    setTimeout(() => {
-                        step.style.animationDelay = `${index * 0.1}s`;
-                    }, index * 100);
-                });
-            }, 100);
-        }
-
-        function generateTimelineHTML(postmortem) {
-            let html = `
-                <div class="proof-timeline">
-                    <div style="margin-bottom: 20px;">
-                        <h3 style="color: #4fc3f7; margin-bottom: 10px;">📊 Execution Summary</h3>
-                        <div class="step-metrics" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
-                            <div class="step-metric">
-                                <div class="metric-label-modal">Total Duration</div>
-                                <div class="metric-value-modal">${postmortem.totalDuration.toFixed(0)}ms</div>
-                            </div>
-                            <div class="step-metric">
-                                <div class="metric-label-modal">Total Cycles</div>
-                                <div class="metric-value-modal">${postmortem.totalCycles.toLocaleString()}</div>
-                            </div>
-                            <div class="step-metric">
-                                <div class="metric-label-modal">Peak Memory</div>
-                                <div class="metric-value-modal">${postmortem.peakMemory}KB</div>
-                            </div>
-                            <div class="step-metric">
-                                <div class="metric-label-modal">Proof Size</div>
-                                <div class="metric-value-modal">${postmortem.proofSize}B</div>
-                            </div>
-                        </div>
-                    </div>
-            `;
-
-            postmortem.steps.forEach((step, index) => {
-                const progressPercentage = ((step.duration / postmortem.totalDuration) * 100).toFixed(1);
+            this.moves = (options) => {
+                if (options && options.square) {
+                    const piece = this.get(options.square);
+                    if (!piece || piece.color !== this.turn_color) return [];
+                    return ['a4', 'a5', 'b4', 'b5', 'c4', 'c5']; // Simplified
+                }
+                return [];
+            };
+            
+            this.move = (moveObj) => {
+                const { from, to } = moveObj;
+                const piece = this.get(from);
+                if (!piece || piece.color !== this.turn_color) return null;
                 
-                html += `
-                    <div class="timeline-step">
-                        <div class="step-number">${index + 1}</div>
-                        <div class="step-content">
-                            <div class="step-title">${step.title}</div>
-                            <div class="step-description">${step.description}</div>
-                            
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${progressPercentage}%"></div>
-                            </div>
-                            
-                            <div class="step-metrics">
-                                <div class="step-metric">
-                                    <div class="metric-label-modal">Duration</div>
-                                    <div class="metric-value-modal">${step.duration}ms</div>
-                                </div>
-                                <div class="step-metric">
-                                    <div class="metric-label-modal">Cycles</div>
-                                    <div class="metric-value-modal">${step.cycles.toLocaleString()}</div>
-                                </div>
-                                <div class="step-metric">
-                                    <div class="metric-label-modal">Memory</div>
-                                    <div class="metric-value-modal">${step.memoryUsed}KB</div>
-                                </div>
-                                <div class="step-metric">
-                                    <div class="metric-label-modal">Status</div>
-                                    <div class="metric-value-modal">${step.success ? '✅ Success' : '❌ Failed'}</div>
-                                </div>
-                            </div>
-                `;
-
-                // Add specific details based on step type
-                if (step.title === "Execution Trace Generation" && step.details.registers) {
-                    html += `
-                        <div class="execution-trace">
-                            <div class="trace-header">🔍 RISC-V Register State</div>
-                            <div class="register-grid">
-                    `;
-                    step.details.registers.slice(0, 16).forEach((reg, i) => {
-                        html += `<div class="register-cell">x${i}: ${reg.substring(0, 6)}...</div>`;
-                    });
-                    html += `
-                            </div>
-                            <div style="margin-top: 10px; font-size: 0.8rem; color: #90a4ae;">
-                                Memory Accesses: ${step.details.memoryAccesses} | Instructions: ${step.details.instructions}
-                            </div>
-                        </div>
-                    `;
-                }
-
-                if (step.details) {
-                    html += `<div class="code-block">`;
-                    Object.entries(step.details).forEach(([key, value]) => {
-                        if (key !== 'registers') {
-                            html += `${key}: ${value}<br>`;
-                        }
-                    });
-                    html += `</div>`;
-                }
-
-                html += `
-                        </div>
-                    </div>
-                `;
-            });
-
-            html += `</div>`;
-            return html;
+                const fromFile = from.charCodeAt(0) - 97;
+                const fromRank = 8 - parseInt(from[1]);
+                const toFile = to.charCodeAt(0) - 97;
+                const toRank = 8 - parseInt(to[1]);
+                
+                this.board_state[toRank][toFile] = this.board_state[fromRank][fromFile];
+                this.board_state[fromRank][fromFile] = null;
+                
+                const moveResult = {
+                    from,
+                    to,
+                    san: from + '-' + to,
+                    piece: piece.type
+                };
+                
+                this.move_history.push(moveResult);
+                this.turn_color = this.turn_color === 'w' ? 'b' : 'w';
+                return moveResult;
+            };
+            
+            this.undo = () => {
+                if (this.move_history.length === 0) return null;
+                const lastMove = this.move_history.pop();
+                this.turn_color = this.turn_color === 'w' ? 'b' : 'w';
+                return lastMove;
+            };
         }
-
-        function closeProofModal() {
-            document.getElementById('proofModal').classList.remove('show');
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('proofModal').addEventListener('click', (e) => {
-            if (e.target.id === 'proofModal') {
-                closeProofModal();
-            }
-        });
 
         // Global functions
         let game;
@@ -1210,13 +1200,17 @@
             if (game) game.undoMove();
         }
         
-        function generateProof() {
-            if (game) game.showNotification('Manual proof generation triggered');
+        function generateManualProof() {
+            if (game) game.generateManualProof();
         }
         
-        // Initialize game
+        function closeProofModal() {
+            document.getElementById('proofModal').classList.remove('active');
+        }
+        
+        // Initialize game when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            game = new ZhesskChessGame();
+            game = new ZhesskEnhancedGame();
         });
     </script>
 </body>
