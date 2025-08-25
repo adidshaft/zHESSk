@@ -3,7 +3,9 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const { Chess } = require('chess.js');
-const SP1ChessProver = require('./sp1-chess-prover'); // Use the enhanced prover
+// const SP1ChessProver = require('./sp1-chess-prover'); // Use the enhanced prover
+// const SP1ChessProver = require('./debug-sp1-prover'); // Use the debug prover
+const SP1ChessProver = require('./working-sp1-prover'); // Use the debug prover
 const path = require('path');
 
 const app = express();

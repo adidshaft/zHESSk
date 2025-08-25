@@ -4,5 +4,6 @@ members = ["program", "script"]
 resolver = "2"
 
 [workspace.dependencies]
-sp1-sdk = "3.0.0"
-sp1-zkvm = "3.0.0"
+sp1-sdk = "1.2.0"
+sp1-zkvm = "1.2.0"
+sp1-helper = "1.2.0"
